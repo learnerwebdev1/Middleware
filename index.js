@@ -16,74 +16,73 @@ app.use(bodyParser.urlencoded({
 
 app.use(bodyParser.json());
 
-// For parsing application/x-www-form-urlencoded
-// app.use(express.urlencoded({ extended: true }));
-
-/******* DB CONNECTION START **/
-
-let mdb;
-//const uri = "mongodb+srv://admin:Learn@2022@cluster0.kcijr.mongodb.net/Users?retryWrites=true&w=majority";
-
-const uri = "mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false";
-//const client = new MongoClient(uri);
-MongoClient.connect(uri, (err, db) => {
-    if(err) throw err;
-    console.log("DB Connection successful");
-    mdb = db;
-   // db.close();
-})
-
-/****** DB CONNECTION END */
-
+//Cloud mongo DB Connection string
+//const uri = "mongodb+srv://admin:pass123@cluster0.kcijr.mongodb.net/Users?retryWrites=true&w=majority";
 
 app.use((req, res, next)=> {
     res.header('Access-Control-Allow-Origin', '*');
     next();
-})
+});
 
 app.get('/', (req, res)=> {
     console.log(req.body);
     res.send({Status:"Success"});
-})
+});
 
 app.post('/IsUserValid', (req, res)=> {
+    console.log('step-1');
     console.log(req.body);
-
+    var valid = false;
     if(req.body.email === "" || req.body.password === "")
     {
-        res.send({IsValid:false});
+        res.send({IsValid:valid});
         return;
     }
-
-    var valid = false;
-    var dbo = mdb.db("Users");
-    //Find the first document in the customers collection:
-    var query = { email: req.body.email };
-    dbo.collection("RegisteredUsers").find(query).toArray( (err, result) => {
-      if (err) throw err;
-      console.log("RESULT from DB: ",result);
-
-      console.log("result.email : ", result[0].email, "--- result.password : ", result[0].password);
-      console.log("req.body.email : ", req.body.email, "--- req.body.password: ", req.body.password)
-
-      if(result[0].email === req.body.email && result[0].password === req.body.password)
-      {
-          console.log("user found");
-          valid = true;
-          console.log("IF valid: " , valid)
-      }        
-      else{
-        console.log("User not found");
-        console.log("ELSE valid: " , valid)
-      }
-      res.send({IsValid:valid});
-     // mdb.close();
-    });
-
-    //console.log("BEFORE SEND --- valid: " , valid)
-
     
-})
+    console.log('step-2');
+    const uri = "mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false";
+
+    MongoClient.connect(uri, (err, mongoDB) => {
+        if(err) throw err;
+        console.log("DB CONNECTED - successful");
+    
+        var database = mongoDB.db("Users");
+        //var database = mongoDB.db("sample_mflix");
+
+        //Find the first document in the customers collection:
+        var query = { email: req.body.email };
+        console.log('step-3');
+        const RegisteredUsers = database.collection("RegisteredUsers");
+        //const RegisteredUsers = database.collection("users");
+        RegisteredUsers.find(query).toArray( (err, result) => {
+            if (err) throw err;
+            console.log('step-4');
+            console.log("RESULT from DB: ",result);
+            
+            if(result.length !== 0)
+            {
+                if(result[0].email === req.body.email && result[0].password === req.body.password)
+                {
+                    console.log("user found");
+                    valid = true;
+                    res.send({IsValid:valid});
+                    console.log("IF valid: " , valid)
+                }        
+                else{
+                    console.log("User not found");
+                    console.log("ELSE valid: " , valid)
+                    res.send({IsValid:valid});
+                }
+            }
+        else {
+            res.send({IsValid:valid});
+        }
+            console.log('step-5');        
+        return valid;
+        });
+    });   
+       
+});
 
 app.listen(8080, (status) => {
 console.log("Server listening on port : ", 8080);
